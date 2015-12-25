@@ -8,6 +8,7 @@ Credit for this implementation goes to Sean J. McKiernan
 (Mekire) at /r/pygame
 https://github.com/Mekire
 """
+import Queue
 import sys
 import pygame as pyg
 import constants as con
@@ -20,6 +21,8 @@ class App:
 	including initialization, event handling, and state 
 	updates
 	"""
+	frames_since_last_event = 0
+	
 	def __init__(self):
 		"""
 		Get a reference to the display surface; set up required attributes;
@@ -57,6 +60,10 @@ class App:
 				self.done = True
 			elif event.type in (pyg.KEYUP, pyg.KEYDOWN):
 				self.keys = pyg.key.get_pressed()
+				#self.player.input_queue.put((event.type, event.key, self.frames_since_last_event))
+				self.player.input_queue.put(event)
+				# Reset frame count since last key event to 0
+				self.frames_since_last_event = 0
 				
 	def render(self):
 		"""
@@ -74,6 +81,13 @@ class App:
 			self.event_loop()
 			self.active_sprite_list.update(self.keys)
 			self.render()
+			self.frames_since_last_event += 1
+			# DEBUG: Keep event frame counter from 
+			#   reaching obscene values by periodically
+			#   resetting it if user offers no keyboard
+			#   input for 1000 frames
+			if self.frames_since_last_event >= 1000:
+				self.frames_since_last_event = 0
 			self.clock.tick(self.fps)
 		
 def main():

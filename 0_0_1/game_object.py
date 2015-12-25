@@ -8,6 +8,7 @@ Credit for original implementation goes to
 Paul Vincent Craven at
 programarcadegames.com
 """
+import Queue
 import pygame as pyg
 import constants as con
 from spritesheet import *
@@ -49,6 +50,9 @@ class Player(PhysObject):
 	jump_force = -10
 	air_jump_force = jump_force
 	gravity_force = .35
+	
+	# -------- Input event queue --------
+	input_queue = Queue.Queue()
 	
 	# -------- State variables --------
 	keys = None
@@ -249,14 +253,21 @@ class Player(PhysObject):
 			self.deltaX = 0
 			
 		# (Neither left nor right held)
-		#   Resolve to no horizontal movement
+		#   Resolve to no horizontal movement (duh)
 		if not keys[pyg.K_LEFT] and not keys[pyg.K_RIGHT]:
 			self.deltaX = 0
-			
-		# (Up pressed)
-		#   Start jumping
-		if keys[pyg.K_UP]:
-			self.jump()
+		
+		# (Input queue: Up key events detected)
+		#   Jump or stop jumping
+		if not self.input_queue.empty():
+			event = self.input_queue.get()
+						
+			if event.type == pyg.KEYDOWN:
+				if event.key == pyg.K_UP:
+					self.jump()
+			elif event.type == pyg.KEYUP:
+				if event.key == pyg.K_UP:
+					self.stop_rising()
 			
 	def jump(self):
 		"""
