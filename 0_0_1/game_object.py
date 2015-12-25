@@ -49,7 +49,6 @@ class Player(PhysObject):
 	air_steer_speed = 3
 	movement_speed = run_speed
 	jump_force = -10
-	air_jump_force = jump_force
 	gravity_force = .35
 	
 	# -------- Input event queue --------
@@ -82,7 +81,161 @@ class Player(PhysObject):
 		self.rect = self.image.get_rect()
 		self.rect.x = 40
 		self.rect.y = 40
+			
+	def update(self, keys):
+		"""
+		Update player attributes based on game events
+		(input, collision detection, etc)
+		"""
+		# Apply gravity
+		self.calc_grav()
+				
+		# Update keystate and handle input
+		self.keys = keys
+		self.handle_input(self.keys)
 		
+		# Apply deltaX
+		self.rect.x += self.deltaX
+		
+		# Set running frame
+		if self.direction == "R":
+			frame = (self.rect.x // 30) % len(self.running_frames_R)
+			self.image = self.running_frames_R[frame]
+		else:
+			frame = (self.rect.x // 30) % len(self.running_frames_L)
+			self.image = self.running_frames_L[frame]
+		
+		# Check for collisions with surfaces (x-axis)
+		surface_col_list = pyg.sprite.spritecollide(self, self.stage.surface_list, False)
+		for surface in surface_col_list:
+			# If character is moving right, adjust character's
+			#   right edge to the left edge of the game surface
+			if self.deltaX > 0:
+				self.rect.right = surface.rect.left
+			# Otherwise, adjust character's left edge to the
+			#   right edge of the game surface
+			elif self.deltaX < 0:
+				self.rect.left = surface.rect.right
+		
+		# Apply deltaY
+		self.rect.y += self.deltaY
+		
+		# Check for collisions with surfaces (y-axis)
+		surface_col_list = pyg.sprite.spritecollide(self, self.stage.surface_list, False)
+		for surface in surface_col_list:
+			# If character is falling, land on the top of the platform
+			if self.deltaY > 0:
+				self.rect.bottom = surface.rect.top
+				self.land()
+			# If character is rising, bump their head on the bottom of
+			#   the platform
+			if self.deltaY < 0:
+				self.rect.top = surface.rect.bottom
+				self.stop_rising()
+				
+		# If character is rising, display jumping animation
+		if self.deltaY < 0:
+			if self.direction == "R":
+				self.image = self.jumping_frames_R[0]
+			else:
+				self.image = self.jumping_frames_L[0]
+				
+		# If character is falling, display falling animation
+		if self.deltaY > 0:
+			if self.direction == "R":
+				if self.deltaY < 1.6:
+					self.image = self.jumping_frames_R[1]
+				elif self.deltaY < 3.3:
+					self.image = self.jumping_frames_R[2]
+				else:
+					self.image = self.jumping_frames_R[3]
+			else:
+				if self.deltaY < 1.6:
+					self.image = self.jumping_frames_L[1]
+				elif self.deltaY < 3.3:
+					self.image = self.jumping_frames_L[2]
+				else:
+					self.image = self.jumping_frames_L[3]
+					
+		# If not airborne or moving horizontally, display
+		#   idle standing animation (currently 1 frame)
+		if not self.airborne and self.deltaX == 0:
+			if self.direction == "R":
+				self.image = self.idle_frames_R[0]
+			else:
+				self.image = self.idle_frames_L[0]
+				
+	def air_jump(self):
+		"""
+		Causes character to jump while airborne
+		"""
+		if self.airborne and not self.air_jumped:
+			self.air_jumped = True
+			self.deltaY = self.jump_force
+	
+	def calc_grav(self):
+		"""
+		Applies character-specific gravity to the
+		player character
+		"""
+		if self.deltaY == 0:
+			self.deltaY = 1
+		else:
+			self.deltaY += self.gravity_force
+		
+	def handle_input(self, keys):
+		"""
+		Handles input by checking keystates to drive
+		movement, possibly other stuff as well
+		(will revisit in later versions)
+		"""
+		# (Left held but not right)
+		#   Move left
+		if keys[pyg.K_LEFT] and not keys[pyg.K_RIGHT]:
+			self.deltaX = -self.movement_speed
+			if not self.airborne:
+				self.direction = "L"
+		
+		# (Right held but not left)
+		#   Move right
+		if keys[pyg.K_RIGHT] and not keys[pyg.K_LEFT]:
+			self.deltaX = self.movement_speed
+			if not self.airborne:
+				self.direction = "R"
+		
+		# (Left and right both held)
+		#   Resolve to no horizontal movement
+		if keys[pyg.K_LEFT] and keys[pyg.K_RIGHT]:
+			self.deltaX = 0
+			
+		# (Neither left nor right held)
+		#   Resolve to no horizontal movement (duh)
+		if not keys[pyg.K_LEFT] and not keys[pyg.K_RIGHT]:
+			self.deltaX = 0
+		
+		# If there's anything in the input event queue,
+		#   we pop the top element and handle what we
+		#   find within
+		if not self.input_queue.empty():
+			event = self.input_queue.get()
+			
+			if event.type == pyg.KEYDOWN:
+				# Up pressed: Character jumps
+				if event.key == pyg.K_UP:
+					if not self.airborne:
+						self.jump()
+					else:
+						self.air_jump()
+			
+			elif event.type == pyg.KEYUP:
+				# Up released: Stop jumping if released 
+				#   fast enough
+				if event.key == pyg.K_UP:
+					# If up is released within 10f of press,
+					#   stop_rising() causes a short jump
+					if event.timestamp <= 10:
+						self.stop_rising()
+						
 	def init_frames(self):
 		"""
 		Load spritesheet as a SpriteSheet object
@@ -135,149 +288,6 @@ class Player(PhysObject):
 			self.jumping_frames_L.append(image)
 			originX += image_width
 			
-	def update(self, keys):
-		"""
-		Update player attributes based on game events
-		(input, collision detection, etc)
-		"""
-		# Apply gravity
-		self.calc_grav()
-				
-		# Update keystate and handle input
-		self.keys = keys
-		self.handle_input(self.keys)
-		
-		# Apply deltaX
-		self.rect.x += self.deltaX
-		
-		# Set running frame
-		if self.direction == "R":
-			frame = (self.rect.x // 30) % len(self.running_frames_R)
-			self.image = self.running_frames_R[frame]
-		else:
-			frame = (self.rect.x // 30) % len(self.running_frames_L)
-			self.image = self.running_frames_L[frame]
-		
-		# Check for collisions with surfaces (x-axis)
-		surface_col_list = pyg.sprite.spritecollide(self, self.stage.surface_list, False)
-		for surface in surface_col_list:
-			# If character is moving right, adjust character's
-			#   right edge to the left edge of the game surface
-			if self.deltaX > 0:
-				self.rect.right = surface.rect.left
-			# Otherwise, adjust character's left edge to the
-			#   right edge of the game surface
-			elif self.deltaX < 0:
-				self.rect.left = surface.rect.right
-		
-		# Apply deltaY
-		self.rect.y += self.deltaY
-		
-		# Check for collisions with surfaces 
-		surface_col_list = pyg.sprite.spritecollide(self, self.stage.surface_list, False)
-		for surface in surface_col_list:
-			# If character is falling, land on the top of the platform
-			if self.deltaY > 0:
-				self.rect.bottom = surface.rect.top
-				self.land()
-			# If character is rising, bump their head on the bottom of
-			#   the platform
-			if self.deltaY < 0:
-				self.rect.top = surface.rect.bottom
-				self.stop_rising()
-				
-		# If character is rising, display jumping animation
-		if self.deltaY < 0:
-			if self.direction == "R":
-				self.image = self.jumping_frames_R[0]
-			else:
-				self.image = self.jumping_frames_L[0]
-				
-		# If character is falling, display falling animation
-		if self.deltaY > 0:
-			if self.direction == "R":
-				if self.deltaY < 1.6:
-					self.image = self.jumping_frames_R[1]
-				elif self.deltaY < 3.3:
-					self.image = self.jumping_frames_R[2]
-				else:
-					self.image = self.jumping_frames_R[3]
-			else:
-				if self.deltaY < 1.6:
-					self.image = self.jumping_frames_L[1]
-				elif self.deltaY < 3.3:
-					self.image = self.jumping_frames_L[2]
-				else:
-					self.image = self.jumping_frames_L[3]
-					
-		# If not airborne or moving horizontally, display
-		#   idle standing animation (currently 1 frame)
-		if not self.airborne and self.deltaX == 0:
-			if self.direction == "R":
-				self.image = self.idle_frames_R[0]
-			else:
-				self.image = self.idle_frames_L[0]
-		
-	def calc_grav(self):
-		"""
-		Applies character-specific gravity to the
-		player character
-		"""
-		if self.deltaY == 0:
-			self.deltaY = 1
-		else:
-			self.deltaY += self.gravity_force
-		
-	def handle_input(self, keys):
-		"""
-		Handles input by checking keystates to drive
-		movement, possibly other stuff as well
-		(will revisit in later versions)
-		"""
-		# (Left held but not right)
-		#   Move left
-		if keys[pyg.K_LEFT] and not keys[pyg.K_RIGHT]:
-			self.deltaX = -self.movement_speed
-			if not self.airborne:
-				self.direction = "L"
-		
-		# (Right held but not left)
-		#   Move right
-		if keys[pyg.K_RIGHT] and not keys[pyg.K_LEFT]:
-			self.deltaX = self.movement_speed
-			if not self.airborne:
-				self.direction = "R"
-		
-		# (Left and right both held)
-		#   Resolve to no horizontal movement
-		if keys[pyg.K_LEFT] and keys[pyg.K_RIGHT]:
-			self.deltaX = 0
-			
-		# (Neither left nor right held)
-		#   Resolve to no horizontal movement (duh)
-		if not keys[pyg.K_LEFT] and not keys[pyg.K_RIGHT]:
-			self.deltaX = 0
-		
-		# If there's anything in the input event queue,
-		#   we pop the top element and handle what we
-		#   find within
-		if not self.input_queue.empty():
-			event = self.input_queue.get()
-			
-			if event.type == pyg.KEYDOWN:
-				# Up pressed: Character jumps
-				if event.key == pyg.K_UP:
-					self.jump()
-			
-			elif event.type == pyg.KEYUP:
-				# Up released: Stop jumping if released 
-				#   fast enough
-				if event.key == pyg.K_UP:
-					# If up is released within 10f of press,
-					#   stop_rising() causes a short jump
-					if event.timestamp <= 10:
-						self.stop_rising()
-			
 	def jump(self):
 		"""
 		Applies jump force to deltaY to make character
@@ -317,4 +327,13 @@ class Player(PhysObject):
 		"""
 		Causes character to stop rising from a jump
 		"""
-		self.deltaY += -0.5*self.jump_force
+		# deltaY value of -3 chosen to prevent 
+		#   unintentional stop_rising() calls
+		#   at positive deltaY values, resulting
+		#   in an unintentional "fastfall"
+		# Value chosen based on the average deltaY at
+		#   which stop_rising() was being called 
+		#   from a short jump before this restriction
+		#   was implemented
+		if self.deltaY <= -3:
+			self.deltaY += -0.5*self.jump_force
