@@ -14,6 +14,7 @@ import pygame as pyg
 import constants as con
 from stage import *
 from game_object import *
+from input import *
 
 class App:
 	"""
@@ -60,8 +61,9 @@ class App:
 				self.done = True
 			elif event.type in (pyg.KEYUP, pyg.KEYDOWN):
 				self.keys = pyg.key.get_pressed()
-				#self.player.input_queue.put((event.type, event.key, self.frames_since_last_event))
-				self.player.input_queue.put(event)
+				self.player.input_queue.put(InputEvent(event.type, event.key, self.frames_since_last_event))
+				#self.player.input_queue.put(event)
+				#self.player.input_queue.put(InputEvent(event, self.frames_since_last_event))
 				# Reset frame count since last key event to 0
 				self.frames_since_last_event = 0
 				

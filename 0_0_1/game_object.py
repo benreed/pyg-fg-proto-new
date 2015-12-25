@@ -12,6 +12,7 @@ import Queue
 import pygame as pyg
 import constants as con
 from spritesheet import *
+from input import *
 
 class PhysObject(pyg.sprite.Sprite):
 	"""
@@ -257,17 +258,25 @@ class Player(PhysObject):
 		if not keys[pyg.K_LEFT] and not keys[pyg.K_RIGHT]:
 			self.deltaX = 0
 		
-		# (Input queue: Up key events detected)
-		#   Jump or stop jumping
+		# If there's anything in the input event queue,
+		#   we pop the top element and handle what we
+		#   find within
 		if not self.input_queue.empty():
 			event = self.input_queue.get()
-						
+			
 			if event.type == pyg.KEYDOWN:
+				# Up pressed: Character jumps
 				if event.key == pyg.K_UP:
 					self.jump()
+			
 			elif event.type == pyg.KEYUP:
+				# Up released: Stop jumping if released 
+				#   fast enough
 				if event.key == pyg.K_UP:
-					self.stop_rising()
+					# If up is released within 10f of press,
+					#   stop_rising() causes a short jump
+					if event.timestamp <= 10:
+						self.stop_rising()
 			
 	def jump(self):
 		"""
@@ -289,8 +298,8 @@ class Player(PhysObject):
 		
 	def land(self):
 		"""
-		Readjusts deltaY and movement speed when 
-		character lands
+		Readjusts deltaY, movement speed, and
+		airborne state flags when character lands
 		"""
 		self.deltaY = 0
 		self.airborne = False
