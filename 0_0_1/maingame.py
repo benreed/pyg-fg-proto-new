@@ -36,6 +36,10 @@ class App:
 		self.done = False
 		self.keys = pyg.key.get_pressed()
 		
+		# Debug flag to target drawn collision rects,
+		#   etc
+		self.debug = True
+		
 		# Initialize player object
 		self.player = Player()
 		
@@ -73,6 +77,8 @@ class App:
 		"""
 		self.current_stage.draw(self.screen)
 		self.active_sprite_list.draw(self.screen)
+		if self.debug:
+			pyg.draw.rect(self.player.image, con.GREEN, self.player.image.get_rect(), 1)
 		pyg.display.flip()
 		
 	def main_loop(self):

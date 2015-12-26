@@ -59,6 +59,7 @@ class Player(PhysObject):
 	direction = "R"
 	airborne = True
 	air_jumped = False
+	jumped_from_run = False
 	
 	# -------- Lists for animation frames --------
 	idle_frames_R = []
@@ -192,34 +193,44 @@ class Player(PhysObject):
 		# (Left held but not right)
 		#   Move left
 		if keys[pyg.K_LEFT] and not keys[pyg.K_RIGHT]:
+			# On the ground, move at a higher speed
 			if not self.airborne:
 				self.deltaX = -self.movement_speed
-			else:
-				if not self.direction == "L":
-					self.deltaX = -self.air_steer_speed
-			if not self.airborne:
 				self.direction = "L"
+			else:
+				# In the air, move more slowly to the
+				#   left if character is not facing 
+				#   left, or if character has jumped 
+				#   vertically
+				if self.direction == "R" or not self.jumped_from_run:
+					self.deltaX = -self.air_steer_speed
 		
 		# (Right held but not left)
 		#   Move right
 		if keys[pyg.K_RIGHT] and not keys[pyg.K_LEFT]:
+			# On the ground, move at a higher speed
 			if not self.airborne:
 				self.deltaX = self.movement_speed
-			else:
-				if not self.direction == "R":
-					self.deltaX = self.air_steer_speed
-			if not self.airborne:
 				self.direction = "R"
+			else:
+				# In the air, move more slowly to the
+				#   right if character is not facing 
+				#   right, or if character has jumped 
+				#   vertically
+				if self.direction == "L" or not self.jumped_from_run:
+					self.deltaX = self.air_steer_speed
 		
 		# (Left and right both held)
 		#   Resolve to no horizontal movement
 		if keys[pyg.K_LEFT] and keys[pyg.K_RIGHT]:
-			self.deltaX = 0
+			if not self.airborne:
+				self.deltaX = 0
 			
 		# (Neither left nor right held)
 		#   Resolve to no horizontal movement (duh)
 		if not keys[pyg.K_LEFT] and not keys[pyg.K_RIGHT]:
-			self.deltaX = 0
+			if not self.airborne:
+				self.deltaX = 0
 		
 		# If there's anything in the input event queue,
 		#   we pop the top element and handle what we
@@ -239,9 +250,9 @@ class Player(PhysObject):
 				# Up released: Stop jumping if released 
 				#   fast enough
 				if event.key == pyg.K_UP:
-					# If up is released within 10f of press,
+					# If up is released within 9f of press,
 					#   stop_rising() causes a short jump
-					if event.timestamp <= 10:
+					if event.timestamp <= 9:
 						self.stop_rising()
 						
 	def init_frames(self):
@@ -312,8 +323,8 @@ class Player(PhysObject):
 		if len(surface_col_list) > 0:
 			self.deltaY = self.jump_force
 			self.airborne = True
-			#self.movement_speed = self.air_steer_speed
-			
+			if (self.keys[pyg.K_RIGHT] and self.direction == "R") or (self.keys[pyg.K_LEFT] and self.direction == "L"):
+				self.jumped_from_run = True
 		
 	def land(self):
 		"""
@@ -323,6 +334,7 @@ class Player(PhysObject):
 		self.deltaY = 0
 		self.airborne = False
 		self.air_jumped = False
+		self.jumped_from_run = False
 		self.movement_speed = self.run_speed
 		
 		if self.deltaX < 0:
