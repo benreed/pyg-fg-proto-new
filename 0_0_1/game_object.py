@@ -192,14 +192,22 @@ class Player(PhysObject):
 		# (Left held but not right)
 		#   Move left
 		if keys[pyg.K_LEFT] and not keys[pyg.K_RIGHT]:
-			self.deltaX = -self.movement_speed
+			if not self.airborne:
+				self.deltaX = -self.movement_speed
+			else:
+				if not self.direction == "L":
+					self.deltaX = -self.air_steer_speed
 			if not self.airborne:
 				self.direction = "L"
 		
 		# (Right held but not left)
 		#   Move right
 		if keys[pyg.K_RIGHT] and not keys[pyg.K_LEFT]:
-			self.deltaX = self.movement_speed
+			if not self.airborne:
+				self.deltaX = self.movement_speed
+			else:
+				if not self.direction == "R":
+					self.deltaX = self.air_steer_speed
 			if not self.airborne:
 				self.direction = "R"
 		
@@ -304,7 +312,8 @@ class Player(PhysObject):
 		if len(surface_col_list) > 0:
 			self.deltaY = self.jump_force
 			self.airborne = True
-			self.movement_speed = self.air_steer_speed
+			#self.movement_speed = self.air_steer_speed
+			
 		
 	def land(self):
 		"""
