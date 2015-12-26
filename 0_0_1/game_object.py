@@ -82,6 +82,7 @@ class Player(PhysObject):
 		self.rect = self.image.get_rect()
 		self.rect.x = 40
 		self.rect.y = 40
+		self.rect = pyg.Rect(self.rect.x+30, self.rect.y, self.image.get_width()-30, self.image.get_height())
 			
 	def update(self, keys):
 		"""

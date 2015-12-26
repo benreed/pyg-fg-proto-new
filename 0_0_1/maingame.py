@@ -64,10 +64,13 @@ class App:
 			if event.type == pyg.QUIT:
 				self.done = True
 			elif event.type in (pyg.KEYUP, pyg.KEYDOWN):
+				# Update key state
 				self.keys = pyg.key.get_pressed()
+				
+				# Put an InputEvent corresponding to this event onto the player's
+				#   input queue
 				self.player.input_queue.put(InputEvent(event.type, event.key, self.frames_since_last_event))
-				#self.player.input_queue.put(event)
-				#self.player.input_queue.put(InputEvent(event, self.frames_since_last_event))
+				
 				# Reset frame count since last key event to 0
 				self.frames_since_last_event = 0
 				
@@ -77,8 +80,12 @@ class App:
 		"""
 		self.current_stage.draw(self.screen)
 		self.active_sprite_list.draw(self.screen)
+		
+		# If debug mode is on, draw visual information
+		#   such as collision rects
 		if self.debug:
-			pyg.draw.rect(self.player.image, con.GREEN, self.player.image.get_rect(), 1)
+			pyg.draw.rect(self.screen, con.GREEN, self.player.rect, 1)
+		
 		pyg.display.flip()
 		
 	def main_loop(self):
